@@ -15,6 +15,8 @@ public class WordleGame {
     private final Set<Character> presentLetters = new HashSet<>();
     private final Set<Character> absentLetters = new HashSet<>();
     private final Map<Integer, Character> exactMatches = new HashMap<>();
+    private final Map<Integer, Set<Character>> forbiddenPositions = new HashMap<>();
+    private final Set<String> usedHints = new HashSet<>();
     private final Random random = new Random();
 
     // Основной конструктор (случайное слово)
@@ -24,6 +26,10 @@ public class WordleGame {
         this.answer = dictionary.getRandomWord();
         this.attemptsLeft = 6;
         this.possibleWords = new HashSet<>(dictionary.getAllWords());
+
+        for (int i = 0; i < 5; i++) {
+            forbiddenPositions.put(i, new HashSet<>());
+        }
 
         log.println("=== НОВАЯ ИГРА ===");
         log.println("Загадано слово: " + answer);
@@ -36,6 +42,10 @@ public class WordleGame {
         this.answer = fixedAnswer;
         this.attemptsLeft = 6;
         this.possibleWords = new HashSet<>(dictionary.getAllWords());
+
+        for (int i = 0; i < 5; i++) {
+            forbiddenPositions.put(i, new HashSet<>());
+        }
 
         log.println("=== НОВАЯ ИГРА ===");
         log.println("Загадано слово (тестовое): " + answer);
@@ -110,6 +120,7 @@ public class WordleGame {
                 presentLetters.add(c);
             } else if (r == '^') {
                 presentLetters.add(c);
+                forbiddenPositions.get(i).add(c);
             } else if (r == '-') {
                 if (!presentLetters.contains(c) && !exactMatches.containsValue(c)) {
                     absentLetters.add(c);
@@ -120,6 +131,7 @@ public class WordleGame {
         log.println("Известные буквы: " + presentLetters);
         log.println("Точные совпадения: " + exactMatches);
         log.println("Отсутствующие буквы: " + absentLetters);
+        log.println("Запрещённые позиции: " + forbiddenPositions);
     }
 
     private void filterPossibleWords() {
@@ -128,6 +140,7 @@ public class WordleGame {
         for (String word : possibleWords) {
             boolean ok = true;
 
+            // Проверка отсутствующих букв
             for (char c : absentLetters) {
                 if (word.indexOf(c) >= 0) {
                     ok = false;
@@ -136,6 +149,7 @@ public class WordleGame {
             }
             if (!ok) continue;
 
+            // Проверка точных совпадений
             for (Map.Entry<Integer, Character> entry : exactMatches.entrySet()) {
                 if (word.charAt(entry.getKey()) != entry.getValue()) {
                     ok = false;
@@ -144,6 +158,20 @@ public class WordleGame {
             }
             if (!ok) continue;
 
+            // Проверка запрещённых позиций (буквы ^)
+            for (Map.Entry<Integer, Set<Character>> entry : forbiddenPositions.entrySet()) {
+                int pos = entry.getKey();
+                for (char c : entry.getValue()) {
+                    if (word.charAt(pos) == c) {
+                        ok = false;
+                        break;
+                    }
+                }
+                if (!ok) break;
+            }
+            if (!ok) continue;
+
+            // Проверка присутствующих букв
             for (char c : presentLetters) {
                 if (word.indexOf(c) < 0) {
                     ok = false;
@@ -166,8 +194,22 @@ public class WordleGame {
             return "???";
         }
 
-        List<String> wordsList = new ArrayList<>(possibleWords);
-        String hint = wordsList.get(random.nextInt(wordsList.size()));
+        // Ищем слово, которое ещё не использовали как подсказку
+        List<String> availableWords = new ArrayList<>();
+        for (String word : possibleWords) {
+            if (!usedHints.contains(word)) {
+                availableWords.add(word);
+            }
+        }
+
+        if (availableWords.isEmpty()) {
+            // Если все слова уже были подсказаны, сбрасываем
+            usedHints.clear();
+            availableWords = new ArrayList<>(possibleWords);
+        }
+
+        String hint = availableWords.get(random.nextInt(availableWords.size()));
+        usedHints.add(hint);
 
         log.println("Подсказка: " + hint);
         return hint;

@@ -6,8 +6,10 @@ import java.util.Scanner;
 public class Wordle {
 
     public static void main(String[] args) {
-        try (PrintWriter log = new PrintWriter("wordle.log", "UTF-8")) {
+        PrintWriter log = null;
 
+        try {
+            log = new PrintWriter("wordle.log", "UTF-8");
             log.println("=== ЗАПУСК ИГРЫ ===");
 
             WordleDictionaryLoader loader = new WordleDictionaryLoader(log);
@@ -25,16 +27,34 @@ public class Wordle {
             playGame(game, log);
 
         } catch (DictionaryNotFoundException e) {
-            System.err.println("Файл словаря не найден!");
-            System.err.println(e.getMessage());
+            if (log != null) {
+                log.println("Ошибка: файл словаря не найден - " + e.getMessage());
+            }
+            System.out.println("Не удалось загрузить словарь. Игра завершена.");
         } catch (DictionaryEmptyException e) {
-            System.err.println("В словаре нет подходящих слов из 5 букв!");
+            if (log != null) {
+                log.println("Ошибка: в словаре нет слов из 5 букв - " + e.getMessage());
+            }
+            System.out.println("Не удалось загрузить словарь. Игра завершена.");
         } catch (IOException e) {
-            System.err.println("Ошибка ввода-вывода: " + e.getMessage());
+            if (log != null) {
+                log.println("Ошибка ввода-вывода: " + e.getMessage());
+            }
+            System.out.println("Произошла ошибка при загрузке. Игра завершена.");
         } catch (Exception e) {
-            System.err.println("Неожиданная ошибка: " + e.getMessage());
-            e.printStackTrace();
+            if (log != null) {
+                log.println("Неожиданная ошибка: " + e.getMessage());
+            }
+            System.out.println("Произошла непредвиденная ошибка. Игра завершена.");
+        } finally {
+            if (log != null) {
+                log.close();
+            }
         }
+    }
+
+    private static String normalizeInput(String input) {
+        return input.trim().toLowerCase().replace('ё', 'е');
     }
 
     private static void playGame(WordleGame game, PrintWriter log) {
@@ -44,7 +64,7 @@ public class Wordle {
             System.out.println("Осталось попыток: " + game.getAttemptsLeft());
             System.out.print("Твой вариант: ");
 
-            String input = scanner.nextLine().trim().toLowerCase();
+            String input = normalizeInput(scanner.nextLine());
 
             if (input.isEmpty()) {
                 String hint = game.getHint();
@@ -72,6 +92,7 @@ public class Wordle {
 
                 if (game.isWin()) {
                     System.out.println("Ты угадал слово!");
+                    System.out.println("Загаданное слово было: " + game.getAnswer());
                     log.println("Игрок победил! Слово: " + input);
                 }
 
